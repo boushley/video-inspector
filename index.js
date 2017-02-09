@@ -15,11 +15,16 @@ if (args.length !== 1) {
 
 
 let framesAllCollected = false;
+let framesArray = []
 
-let metadataPromise = probe(args[0], {getFrames: false});
-let framesPromise = probe(args[0], {getFrames: true});
+let metadataPromise = probe(args[0]);
+let framesPromise = probe(args[0], {getStreams: false, getFormat: false, getFrames: true, framesArray});
 
-framesPromise.then(null, promiseExit);
+metadataPromise.then(null, promiseExit);
+framesPromise.then(function(data) {
+  framesAllCollected = true;
+  framesArray = data.frames;
+}).then(null, promiseExit);
 
 metadataPromise.then(function(data) {
   let trackQuestion = 'Which track do you want to see info about?';
@@ -43,7 +48,7 @@ metadataPromise.then(function(data) {
       showPtsData(data.streams.map(s => s.index));
     } else {
       console.log(`Great, lets get some info on track: ${answer}`);
-      showPtsData(data.streams[parseInt(answer)].index);
+      showPtsData([data.streams[parseInt(answer)].index]);
     }
   });
 }).then(null, promiseExit);
@@ -52,51 +57,64 @@ const DEFAULT_TO_SHOW = 20;
 const PATIENCE_TIME = 5000;
 function showPtsData(tracks) {
   rl.question(`Alright, lets look at some of those PTS values. How many at a time? [${DEFAULT_TO_SHOW}]`, (answer) => {
-    let framesToShow = parseInt(answer);
-    if (!framesToShow) {
-      framesToShow = DEFAULT_TO_SHOW;
-    }
-
-    framesPromise.then((data) => {
-      framesAllCollected = true;
-      printFrames(tracks, data.frames, 0, framesToShow);
-    }).then(null, promiseExit);
-    setTimeout(printPatience, PATIENCE_TIME);
+    let framesToShow = parseInt(answer) || DEFAULT_TO_SHOW;
+    printFrames(tracks, framesArray, 0, framesToShow);
   });
 }
 
-function printFrames(tracks, frames, start, framesToShow) {
+function printFrames(tracks, frames, nextFrame, framesToShow) {
   let collected = [];
-  let i;
 
-  for (i = start; collected.length < framesToShow && i < frames.length; i++) {
-    let frame = frames[i];
+  while (nextFrame < frames.length && collected.length < framesToShow) {
+    let frame = frames[nextFrame];
+    nextFrame += 1;
     if (tracks.includes(frame.stream_index)) {
-    console.log(frame);
-    throw 'DONE';
       collected.push(frame);
     }
   }
 
   collected.forEach(frame => {
-    console.log(`Index: ${frame.stream_index} PTS: <${frame.pkt_pts}> PTS Time: <${frame.pkt_pts_time}> Pos: <${frame.pkt_pos}>`);
+    let frameMessage = '';
+    if (tracks.length > 1) {
+      frameMessage = `Stream: Type <${frame.media_type}> Index <${frame.stream_index}> `;
+    }
+
+    frameMessage += `PTS: <${frame.pkt_pts}>[${frame.pkt_pts_time}] Duration: <${frame.pkt_duration}>[${frame.pkt_duration_time}] Pos: <${frame.pkt_pos}>`;
+
+    if (frame.media_type === 'video') {
+      frameMessage += ` Frame Type: <${frame.pict_type}>`;
+    }
+
+    console.log(frameMessage);
   });
 
-  rl.question(`Hit enter to see more.`, () => {
-    printFrames(tracks, frames, i, framesToShow);
-  });
-}
-
-let patiencePrinted = 0;
-function printPatience() {
+  let prompt = '';
   if (framesAllCollected) {
-    return;
+    prompt += `Found all ${framesArray.length} frames. `
+  } else {
+    prompt += `Found ${framesArray.length} frames so far. `
   }
 
-  patiencePrinted++;
-  const waitTime = Math.floor((patiencePrinted * PATIENCE_TIME)/1000);
-  console.log(`We\'re still collecting those frames ${waitTime}s...`);
-  setTimeout(printPatience, PATIENCE_TIME);
+  prompt += `[q] to quit. [gg] go back to start. [G] go to end. [n] see the next ${framesToShow} (default)`;
+
+  rl.question(prompt, (answer) => {
+    answer = answer.trim();
+
+    if (answer === 'q') {
+      exit(0, 'Hope that helped!');
+      return;
+    }
+
+    if (answer === 'gg') {
+      nextFrame = 0;
+    }
+
+    if (answer === 'G') {
+      nextFrame = frames.length - framesToShow;
+    }
+
+    printFrames(tracks, frames, nextFrame, framesToShow);
+  });
 }
 
 //FFMPEG Video Frame Format
@@ -124,6 +142,27 @@ function printPatience() {
 //  interlaced_frame: 0,
 //  top_field_first: 0,
 //  repeat_pict: 0
+//}
+
+//FFMPEG Audio Frame Format
+//{
+//  "media_type": "audio",
+//    "stream_index": 1,
+//    "key_frame": 1,
+//    "pkt_pts": 353280,
+//    "pkt_pts_time": "0:00:08.010884",
+//    "pkt_dts": 353280,
+//    "pkt_dts_time": "0:00:08.010884",
+//    "best_effort_timestamp": 353280,
+//    "best_effort_timestamp_time": "0:00:08.010884",
+//    "pkt_duration": 1024,
+//    "pkt_duration_time": "0:00:00.023220",
+//    "pkt_pos": "346522",
+//    "pkt_size": "546 byte",
+//    "sample_fmt": "fltp",
+//    "nb_samples": 1024,
+//    "channels": 2,
+//    "channel_layout": "stereo"
 //}
 
 // FFMPEG Streams Format
