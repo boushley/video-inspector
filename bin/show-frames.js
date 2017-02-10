@@ -33,6 +33,7 @@ framesPromise.then(function(data) {
 metadataPromise
   .then((context) => {
     return Object.assign({}, context, {
+      filter: require('../lib/filter-frames'),
       frames: framesArray,
       printer: printers.timing
     });
@@ -44,10 +45,11 @@ metadataPromise
   .catch(promiseExit);
 
 
-function print(context) {
-  const startFrame = context.nextFrame;
+function print(oldContext) {
+  const startFrame = oldContext.nextFrame;
+  const {context, toPrint} = oldContext.filter(oldContext);
 
-  context = context.printer(context);
+  context.printer(context, toPrint);
 
   let {frames, nextFrame, framesToShow} = context;
 
