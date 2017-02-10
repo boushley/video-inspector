@@ -1,0 +1,25 @@
+{
+  "name": "video-inspector",
+  "version": "1.0.0",
+  "description": "Interactive tools to help debug video issues",
+  "main": "bin/frames.js",
+  "bin": {
+    "show-frames": "frames.js"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/boushley/video-inspector.git"
+  },
+  "keywords": [
+    "video"
+  ],
+  "author": "Aaron Boushley (boushley@gmail.com)",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/boushley/video-inspector/issues"
+  },
+  "homepage": "https://github.com/boushley/video-inspector#readme"
+}
