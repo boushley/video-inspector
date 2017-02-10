@@ -1,11 +1,14 @@
-const readline = require('readline');
+#!/usr/bin/env node
 const probe = require('./lib/probe');
 const {exit, promiseExit} = require('./lib/util');
+const actions = require('./lib/actions');
 
+const readline = require('readline');
 const rl = readline.createInterface({
   input: process.stdin,
   output: process.stdout
 });
+actions.rl = rl;
 
 const args = process.argv.slice(2);
 if (args.length !== 1) {
@@ -26,56 +29,34 @@ framesPromise.then(function(data) {
   framesArray = data.frames;
 }).then(null, promiseExit);
 
-metadataPromise.then(function(data) {
-  let trackQuestion = 'Which track do you want to see info about?';
+metadataPromise
+  .then((context) => {
+    return Object.assign({}, context, {
+      frames: framesArray
+    });
+  })
+  .then(actions.tracks)
+  .then(actions.size)
+  .then(actions.gg)
+  .then(print)
+  .catch(promiseExit);
 
-  let index = 0;
-  data.streams.forEach(s => {
-    trackQuestion += `\n\t[${index}] ${s.codec_type} - ${s.codec_name} - ${s.bit_rate}`;
-    if (s.codec_type === 'video') {
-      trackQuestion += ` (${s.width}x${s.height})`;
-    } else if (s.code_type === 'audio') {
-      trackQuestion += ` (${s.channel_layout})`;
-    }
-    index++;
-  });
 
-  trackQuestion += `\n\t[${index}] All (default)\n`;
-
-  rl.question(trackQuestion, (answer) => {
-    if (!answer.trim() || answer === index) {
-      console.log('Sounds good, we\'ll look at all the data');
-      showPtsData(data.streams.map(s => s.index));
-    } else {
-      console.log(`Great, lets get some info on track: ${answer}`);
-      showPtsData([data.streams[parseInt(answer)].index]);
-    }
-  });
-}).then(null, promiseExit);
-
-const DEFAULT_TO_SHOW = 20;
-const PATIENCE_TIME = 5000;
-function showPtsData(tracks) {
-  rl.question(`Alright, lets look at some of those PTS values. How many at a time? [${DEFAULT_TO_SHOW}]`, (answer) => {
-    let framesToShow = parseInt(answer) || DEFAULT_TO_SHOW;
-    printFrames(tracks, framesArray, 0, framesToShow);
-  });
-}
-
-function printFrames(tracks, frames, nextFrame, framesToShow) {
+function print(context) {
+  let {tracksToShow, frames, nextFrame, framesToShow} = context;
   let collected = [];
 
   while (nextFrame < frames.length && collected.length < framesToShow) {
     let frame = frames[nextFrame];
     nextFrame += 1;
-    if (tracks.includes(frame.stream_index)) {
+    if (tracksToShow.includes(frame.stream_index)) {
       collected.push(frame);
     }
   }
 
   collected.forEach(frame => {
     let frameMessage = '';
-    if (tracks.length > 1) {
+    if (tracksToShow.length > 1) {
       frameMessage = `Stream: Type <${frame.media_type}> Index <${frame.stream_index}> `;
     }
 
@@ -95,25 +76,19 @@ function printFrames(tracks, frames, nextFrame, framesToShow) {
     prompt += `Found ${framesArray.length} frames so far. `
   }
 
-  prompt += `[q] to quit. [gg] go back to start. [G] go to end. [n] see the next ${framesToShow} (default)`;
+  prompt += `[help] to see commands. [n] see the next ${framesToShow} (default)  `;
 
   rl.question(prompt, (answer) => {
     answer = answer.trim();
 
-    if (answer === 'q') {
-      exit(0, 'Hope that helped!');
-      return;
+    const args = answer.split(' ');
+    const commandName = args.shift();
+    let command = actions[commandName];
+    if (!command) {
+      command = actions.noOp;
     }
 
-    if (answer === 'gg') {
-      nextFrame = 0;
-    }
-
-    if (answer === 'G') {
-      nextFrame = frames.length - framesToShow;
-    }
-
-    printFrames(tracks, frames, nextFrame, framesToShow);
+    command(Object.assign({}, context, {nextFrame}), args).then(print);
   });
 }
 
