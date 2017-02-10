@@ -2,9 +2,9 @@
   "name": "video-inspector",
   "version": "1.0.0",
   "description": "Interactive tools to help debug video issues",
-  "main": "bin/frames.js",
+  "main": "bin/show-frames.js",
   "bin": {
-    "show-frames": "frames.js"
+    "show-frames": "show-frames.js"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"

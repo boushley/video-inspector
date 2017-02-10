@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-const probe = require('./lib/probe');
-const {exit, promiseExit} = require('./lib/util');
-const actions = require('./lib/actions');
-const printers = require('./lib/printers');
+const probe = require('../lib/probe');
+const {exit, promiseExit} = require('../lib/util');
+const actions = require('../lib/actions');
+const printers = require('../lib/printers');
 
 const readline = require('readline');
 const rl = readline.createInterface({
@@ -65,7 +65,7 @@ function print(context) {
     prompt += `${framesArray.length} frames so far. `
   }
 
-  prompt += `[help] to see commands. [n] see the next ${framesToShow} (default)  `;
+  prompt += `[help] to see commands. See the next ${framesToShow} frames, just hit enter: `;
 
   rl.question(prompt, (answer) => {
     answer = answer.trim();
