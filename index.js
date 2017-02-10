@@ -2,6 +2,7 @@
 const probe = require('./lib/probe');
 const {exit, promiseExit} = require('./lib/util');
 const actions = require('./lib/actions');
+const printers = require('./lib/printers');
 
 const readline = require('readline');
 const rl = readline.createInterface({
@@ -32,7 +33,8 @@ framesPromise.then(function(data) {
 metadataPromise
   .then((context) => {
     return Object.assign({}, context, {
-      frames: framesArray
+      frames: framesArray,
+      printer: printers.timing
     });
   })
   .then(actions.tracks)
@@ -43,37 +45,24 @@ metadataPromise
 
 
 function print(context) {
-  let {tracksToShow, frames, nextFrame, framesToShow} = context;
-  let collected = [];
+  const startFrame = context.nextFrame;
 
-  while (nextFrame < frames.length && collected.length < framesToShow) {
-    let frame = frames[nextFrame];
-    nextFrame += 1;
-    if (tracksToShow.includes(frame.stream_index)) {
-      collected.push(frame);
-    }
+  context = context.printer(context);
+
+  let {frames, nextFrame, framesToShow} = context;
+
+  const lastFrame = nextFrame - 1;
+  let prompt = '';
+  if (framesToShow === 1) {
+    prompt += `That was frame ${startFrame} of `
+  } else {
+    prompt += `That was frames ${startFrame}-${lastFrame} of `
   }
 
-  collected.forEach(frame => {
-    let frameMessage = '';
-    if (tracksToShow.length > 1) {
-      frameMessage = `Stream: Type <${frame.media_type}> Index <${frame.stream_index}> `;
-    }
-
-    frameMessage += `PTS: <${frame.pkt_pts}>[${frame.pkt_pts_time}] Duration: <${frame.pkt_duration}>[${frame.pkt_duration_time}] Pos: <${frame.pkt_pos}>`;
-
-    if (frame.media_type === 'video') {
-      frameMessage += ` Frame Type: <${frame.pict_type}>`;
-    }
-
-    console.log(frameMessage);
-  });
-
-  let prompt = '';
   if (framesAllCollected) {
-    prompt += `Found all ${framesArray.length} frames. `
+    prompt += `the total ${framesArray.length} frames. `
   } else {
-    prompt += `Found ${framesArray.length} frames so far. `
+    prompt += `${framesArray.length} frames so far. `
   }
 
   prompt += `[help] to see commands. [n] see the next ${framesToShow} (default)  `;
@@ -88,7 +77,7 @@ function print(context) {
       command = actions.noOp;
     }
 
-    command(Object.assign({}, context, {nextFrame}), args).then(print);
+    command(Object.assign({}, context), args).then(print);
   });
 }
 
