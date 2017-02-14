@@ -13,7 +13,7 @@ actions.rl = rl;
 
 const args = process.argv.slice(2);
 if (args.length !== 1) {
-  exit(1, 'Usage: node index.js <path/to/file>');
+  exit(1, 'Usage: show-frames <path/to/file>');
   return;
 }
 
