@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 const hls = require('../lib/hls');
-const {promiseExit} = require('../lib/util');
+const {exit, promiseExit} = require('../lib/util');
 
 const readline = require('readline');
 const rl = readline.createInterface({
@@ -9,13 +9,13 @@ const rl = readline.createInterface({
 });
 
 const args = process.argv.slice(2);
-if (args.length !== 1) {
-  exit(1, 'Usage: hls-download <url>');
+if (args.length !== 2) {
+  exit(1, 'Usage: hls-download <output/path> <url>');
   return;
 }
 
-hls.getManifest(args[0])
-  .then(hls.downloadItems)
+hls.getManifest(args[1])
+  .then(manifest => hls.downloadItems(manifest, {out: args[0]}))
   .then((manifest) => {
-    console.log('We got the manifest!', JSON.stringify(manifest, null, 4));
+    console.log('Everything has been downloaded');
   }).catch(promiseExit);
