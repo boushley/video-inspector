@@ -17,5 +17,5 @@ if (args.length !== 2) {
 hls.getManifest(args[1])
   .then(manifest => hls.downloadItems(manifest, {out: args[0]}))
   .then((manifest) => {
-    console.log('Everything has been downloaded');
+    exit(0, 'Everything has been downloaded');
   }).catch(promiseExit);
